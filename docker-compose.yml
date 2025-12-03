@@ -1,0 +1,65 @@
+services:
+  # 1. Base de données (PostgreSQL).
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ai_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ai_network
+
+  # 2. Message Broker (Redis).
+  redis:
+    image: redis:7-alpine
+    restart: always
+    networks:
+      - ai_network
+  
+  # 3. API (FastAPI).
+  api:
+    build: .
+    container_name: fast_api_server
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./app:/app/app # Hot-reload du code en dev.
+      - ./shared_models:/app/models
+    environment:
+      - DATABASE_URL=postgresql://user:postgres@db:5432/ai_db
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_PATH=/app/models
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - ai_network
+
+  # 4. Worker (Celery + AI Training).
+  worker:
+    build: .
+    container_name: ai_training_worker
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    volumes:
+      - ./app:/app/app
+      - ./shared_models:/app/models
+    environment:
+      - DATABASE_URL=postgresql://user:postgres@db:5432/ai_db
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_PATH=/app/models
+    depends_on:
+      - db
+      - redis
+    networks:
+      - ai_network
+
+volumes:
+  postgres_data:
+
+networks:
+  ai_network:
+    driver: bridge
