@@ -9,6 +9,8 @@ services:
       POSTGRES_DB: ai_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432" # Mappe le port 5433 vers 5432.
     networks:
       - ai_network
 
