@@ -15,8 +15,9 @@ class AsteroidPrediction(Base):
     inclination = Column(Float, nullable=False, comment="Feature: ast_inclination")
 
     # Prediction.
-    predicted_hazardous = Column(Boolean, comment="AI prediction (True/False).")
-    confidence_score = Column(Float, comment="Confidence score (e.g: 0.95).")
+    predicted_hazardous = Column(Boolean, comment="AI Prediction (True/False).")
+    confidence_score = Column(Float, comment="Model certainty (e.g. 0.95).")
+    impact_probability = Column(Float, comment="Earth impact probability (0.0 to 1.0).")
     model_version = Column(String, default="v1", comment="AI model version used.")
 
     # Meta.

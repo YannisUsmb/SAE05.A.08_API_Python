@@ -25,6 +25,12 @@ class AsteroidService:
         )
         
         confidence_simulated = random.uniform(0.85, 0.99) if is_hazardous_simulated else random.uniform(0.01, 0.15)
+
+        if is_hazardous_simulated:
+            impact_prob_simulated = random.uniform(0.01, 0.05) 
+        else:
+            impact_prob_simulated = random.uniform(0.000001, 0.0001)
+        
         model_version = "v0-mock"
 
         # Save to Database (Repository Layer).
@@ -32,6 +38,7 @@ class AsteroidService:
             input_data=input_data,
             is_hazardous=is_hazardous_simulated,
             confidence=confidence_simulated,
+            impact_prob=impact_prob_simulated,
             model_version=model_version
         )
 

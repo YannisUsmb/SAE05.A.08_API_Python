@@ -7,11 +7,11 @@ class AsteroidInput(BaseModel):
     Data Transfer Object for Asteroid input features.
     Matches the dataset columns.
     """
-    absolute_magnitude: float = Field(..., description="Absolute Magnitude (H)")
-    diameter_min_km: float = Field(..., gt=0, description="Minimum estimated diameter in km")
-    diameter_max_km: float = Field(..., gt=0, description="Maximum estimated diameter in km")
-    semi_major_axis: float = Field(..., description="Semi-major axis (au)")
-    inclination: float = Field(..., description="Inclination (deg)")
+    absolute_magnitude: float = Field(..., description="Absolute Magnitude (H).")
+    diameter_min_km: float = Field(..., gt=0, description="Minimum estimated diameter in km.")
+    diameter_max_km: float = Field(..., gt=0, description="Maximum estimated diameter in km.")
+    semi_major_axis: float = Field(..., description="Semi-major axis (au).")
+    inclination: float = Field(..., description="Inclination (deg).")
 
     class Config:
         json_schema_extra = {
@@ -31,6 +31,7 @@ class AsteroidOutput(AsteroidInput):
     id: int
     predicted_hazardous: bool
     confidence_score: Optional[float] = None
+    impact_probability: float = Field(..., description="Probability of Earth impact (0.0 to 1.0).")
     model_version: str
     created_at: datetime
 

@@ -11,6 +11,7 @@ class AsteroidRepository:
         input_data: AsteroidInput, 
         is_hazardous: bool, 
         confidence: float, 
+        impact_prob: float,
         model_version: str
     ) -> AsteroidPrediction:
         """
@@ -27,6 +28,7 @@ class AsteroidRepository:
             # Mapping prediction results.
             predicted_hazardous=is_hazardous,
             confidence_score=confidence,
+            impact_probability=impact_prob,
             model_version=model_version
         )
         
