@@ -1,5 +1,3 @@
-from typing import Union
-
 from fastapi import FastAPI
 from app.core.database import engine, Base
 from app.models_db import AsteroidPrediction
@@ -21,8 +19,3 @@ def read_root():
 def health_check():
     # Later, add a connexion test to redis.
     return {"db": "ok"}
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
