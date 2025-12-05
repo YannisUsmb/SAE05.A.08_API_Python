@@ -34,7 +34,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - MODEL_PATH=/app/models
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       - db
       - redis
