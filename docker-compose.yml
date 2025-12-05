@@ -4,9 +4,9 @@ services:
     image: postgres:15-alpine
     restart: always
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ai_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -30,9 +30,9 @@ services:
       - ./app:/app/app # Hot-reload du code en dev.
       - ./shared_models:/app/models
     environment:
-      - DATABASE_URL=postgresql://user:postgres@db:5432/ai_db
-      - REDIS_URL=redis://redis:6379/0
-      - MODEL_PATH=/app/models
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - MODEL_PATH=${MODEL_PATH}
     ports:
       - "8001:8000"
     depends_on:
@@ -50,9 +50,10 @@ services:
       - ./app:/app/app
       - ./shared_models:/app/models
     environment:
-      - DATABASE_URL=postgresql://user:postgres@db:5432/ai_db
-      - REDIS_URL=redis://redis:6379/0
-      - MODEL_PATH=/app/models
+      - DATABASE_URL=${DATABASE_URL}
+      - SOURCE_DATABASE_URL=${SOURCE_DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - MODEL_PATH=${MODEL_PATH}
     depends_on:
       - db
       - redis

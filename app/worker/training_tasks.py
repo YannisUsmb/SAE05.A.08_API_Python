@@ -6,7 +6,7 @@ from app.worker.celery_app import celery_app
 
 MODEL_PATH = os.getenv("MODEL_PATH", "/app/models")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:postgres@db:5433/ai_db")
+SOURCE_DB_URL = os.getenv("SOURCE_DATABASE_URL")
 
 @celery_app.task(name="train_asteroid_model")
 def train_asteroid_model_task():
@@ -15,9 +15,21 @@ def train_asteroid_model_task():
     """
     print("Worker is connecting to database to fetch training data...")
 
+    if not SOURCE_DB_URL:
+        print("Error: SOURCE_DATABASE_URL is not set in docker-compose.")
+        return "Training failed (Missing Config)."
+    
+    print(f"Connecting to external source DB...")
+
     # Create a dedicated engine for the worker.
-    internal_db_url = DATABASE_URL.replace("localhost", "db").replace("5433", "5432")
-    engine = create_engine(internal_db_url)
+    try:
+        source_engine = create_engine(SOURCE_DB_URL)
+        connection = source_engine.connect()
+        connection.close()
+        print("Connection to external DB successful.")
+    except Exception as e:
+        print(f"Could not connect to external DB: {e}")
+        return "Training failed (Connection Error)."
 
     # Fetch Data.
     query = """
@@ -36,20 +48,26 @@ def train_asteroid_model_task():
     """
 
     try:
-        df = pd.read_sql(query, engine)
-        print(f"Dataset loaded: {len(df)} rows.")
+        df = pd.read_sql(query, source_engine)
+        print(f"Dataset loaded from external source: {len(df)} rows.")
     except Exception as e:
-        print(f"Error reading database: {e}")
-        return "Training failed."
+        print(f"Error executing query: {e}")
+        return "Training failed (SQL Error)."
     
     if df.empty:
-        print("Warning: Dataset is empty. Cannot train.")
+        print("Warning: External dataset is empty.")
         return "Training skipped (Empty Data)."
     
     # Prepare Data.
-    y = df['target'].astype(int)
+    if df['target'].dtype == 'bool':
+        y = df['target'].astype(int)
+    else:
+        y = df['target']
+
     X = df.drop(columns=['target'])
 
+    # Train.
+    print("Starting LightGBM training...")
     train_data = lgb.Dataset(X, label=y)
 
     params = {
@@ -58,9 +76,7 @@ def train_asteroid_model_task():
         'boosting_type': 'gbdt',
         'verbose': -1
     }
-
-    # Train.
-    print("Starting LightGBM training...")
+    
     bst = lgb.train(params, train_data, num_boost_round=100)
 
     # Save Model.
