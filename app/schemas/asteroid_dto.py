@@ -23,6 +23,8 @@ class AsteroidInput(BaseModel):
                 "inclination": 5.8
             }
         }
+    
+    model_config = {"protected_namespaces": ()}
 
 class AsteroidOutput(AsteroidInput):
     """
@@ -37,3 +39,5 @@ class AsteroidOutput(AsteroidInput):
 
     class Config:
         from_attributes = True
+
+    model_config = {"protected_namespaces": ()}
