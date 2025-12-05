@@ -37,9 +37,6 @@ class AsteroidOutput(AsteroidInput):
     model_version: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
     model_config = {
         "protected_namespaces": (),
         "from_attributes": True
