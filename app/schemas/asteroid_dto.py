@@ -13,8 +13,9 @@ class AsteroidInput(BaseModel):
     semi_major_axis: float = Field(..., description="Semi-major axis (au).")
     inclination: float = Field(..., description="Inclination (deg).")
 
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "protected_namespaces": (),
+        "json_schema_extra": {
             "example": {
                 "absolute_magnitude": 22.5,
                 "diameter_min_km": 0.12,
@@ -23,8 +24,7 @@ class AsteroidInput(BaseModel):
                 "inclination": 5.8
             }
         }
-    
-    model_config = {"protected_namespaces": ()}
+    }
 
 class AsteroidOutput(AsteroidInput):
     """
@@ -40,4 +40,7 @@ class AsteroidOutput(AsteroidInput):
     class Config:
         from_attributes = True
 
-    model_config = {"protected_namespaces": ()}
+    model_config = {
+        "protected_namespaces": (),
+        "from_attributes": True
+    }
