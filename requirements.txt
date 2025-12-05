@@ -17,7 +17,7 @@ redis==5.0.1
 numpy
 pandas
 scikit-learn
-# lightgbm
-# timm
-# torch --index-url https://download.pytorch.org/whl/cpu
-# shap
+lightgbm
+timm
+torch --index-url https://download.pytorch.org/whl/cpu
+shap
