@@ -6,9 +6,14 @@ import timm
 
 class ModelLoader:
     def __init__(self):
+        # Asteroids.
         self.asteroid_models = {}
-        self.image_models = {}
         self.default_version = None
+
+        # Images.
+        self.image_models = {}
+        self.default_image_version = None
+
         self.models_path = os.getenv("MODEL_PATH", "/app/models")
 
     def load_models(self):
@@ -42,11 +47,29 @@ class ModelLoader:
             print(f"Default model version set to: {self.default_version}.")
 
         # Load Celestial Body Classification Model (PyTorch).
-        image_path = os.path.join(self.models_path, "resnet_finetuned.pt")
-        if os.path.exists(image_path):
-            pass # TODO: Load PyTorch Model.
-        else:
-            print(f"No Celestial Body Classification Model found at {image_path}.")
+        search_path_img = os.path.join(self.models_path, "resnet_model_*.pt")
+        img_files = sorted(glob.glob(search_path_img))
 
-# Creates a global instance.
+        if not img_files:
+            print("No image models found.")
+        else:
+            self.image_models = {}
+            for file_path in img_files:
+                try:
+                    filename = os.path.basename(file_path)
+                    version = filename.replace("resnet_model_", "").replace(".pt", "")
+                    
+                    model = torch.jit.load(file_path, map_location=torch.device('cpu'))
+                    model.eval()
+                    
+                    self.image_models[version] = model
+                    print(f"Loaded Image Model: {version}.")
+                except Exception as e:
+                    print(f"Error loading image model {filename}: {e}.")
+
+            if self.image_models:
+                self.default_image_version = list(self.image_models.keys())[-1]
+                print(f"Default Image Version: {self.default_image_version}.")
+
+# Singleton.
 ml_models = ModelLoader()
