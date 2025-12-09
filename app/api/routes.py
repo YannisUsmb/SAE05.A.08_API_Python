@@ -7,7 +7,7 @@ from app.worker.training_tasks import train_asteroid_model_task
 
 router = APIRouter()
 
-@router.post("/predict/asteroid", response_model=AsteroidOutput, status_code=201)
+@router.post("/predict-asteroid", response_model=AsteroidOutput, status_code=201)
 def predict_asteroid(payload: AsteroidInput, db: Session = Depends(get_db)):
     """
     Predict if an asteroid is potentially hazardous based on its features.
@@ -25,7 +25,7 @@ def predict_asteroid(payload: AsteroidInput, db: Session = Depends(get_db)):
         # Log the error.
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.post("/admin/train", status_code=202)
+@router.post("/train/asteroid-model", status_code=202)
 def trigger_training():
     """
     Triggers the training process in the background Worker.

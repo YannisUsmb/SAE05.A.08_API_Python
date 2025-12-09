@@ -19,11 +19,18 @@ class AsteroidService:
         Strict mode: If model is missing, raises 503 error.
         """
 
-        if ml_models.asteroid_model is None:
+        selected_version = input_data.model_version_id
+
+        if not selected_version:
+            selected_version = ml_models.default_version
+
+        if not selected_version or selected_version not in ml_models.asteroid_models:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Asteroid Prediction Model is unavailable."
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Asteroid Prediction Model '{selected_version}' not found."
             )
+        
+        model = ml_models.asteroid_models[selected_version]
 
         features = np.array([[
             input_data.absolute_magnitude,
@@ -34,7 +41,7 @@ class AsteroidService:
         ]])
 
         try:
-            prob = ml_models.asteroid_model.predict(features)[0]
+            prob = model.predict(features)[0]
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -44,7 +51,6 @@ class AsteroidService:
         is_hazardous = bool(prob > 0.5)
         confidence = float(prob) if is_hazardous else float(1 - prob)
         impact_prob = float(prob / 100)
-        model_version = "v1-alpha"
             
         # Save to Database (Repository Layer).
         saved_prediction = self.repository.create_prediction(
@@ -52,7 +58,7 @@ class AsteroidService:
             is_hazardous=is_hazardous,
             confidence=confidence,
             impact_prob=impact_prob,
-            model_version=model_version
+            model_version=selected_version
         )
 
         # Convert SQL Model to Pydantic DTO.

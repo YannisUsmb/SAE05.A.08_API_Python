@@ -12,6 +12,7 @@ class AsteroidInput(BaseModel):
     diameter_max_km: float = Field(..., gt=0, description="Maximum estimated diameter in km.")
     semi_major_axis: float = Field(..., description="Semi-major axis (au).")
     inclination: float = Field(..., description="Inclination (deg).")
+    model_version_id: Optional[str] = Field(None, description="Specific model version to use. If null, uses latest.")
 
     model_config = {
         "protected_namespaces": (),
@@ -21,7 +22,8 @@ class AsteroidInput(BaseModel):
                 "diameter_min_km": 0.12,
                 "diameter_max_km": 0.28,
                 "semi_major_axis": 1.45,
-                "inclination": 5.8
+                "inclination": 5.8,
+                "model_version_id": None
             }
         }
     }

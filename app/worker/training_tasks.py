@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import pandas as pd
 import lightgbm as lgb
@@ -11,7 +12,7 @@ SOURCE_DB_URL = os.getenv("SOURCE_DATABASE_URL")
 @celery_app.task(name="train_asteroid_model")
 def train_asteroid_model_task():
     """
-    Trains LightGBM using REAL data from 't_e_asteroid_ast'.
+    Trains LightGBM using data from 't_e_asteroid_ast'.
     """
     print("Worker is connecting to database to fetch training data...")
 
@@ -80,8 +81,10 @@ def train_asteroid_model_task():
     bst = lgb.train(params, train_data, num_boost_round=100)
 
     # Save Model.
-    output_file = os.path.join(MODEL_PATH, "asteroid_model.txt")
+    version_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"asteroid__prediction_model_{version_id}.txt"
+    output_file = os.path.join(MODEL_PATH, filename)
     bst.save_model(output_file)
 
-    print(f"Worker saved the model successfully at {output_file}.")
+    print(f"Worker saved the model {version_id} successfully at {output_file}.")
     return "Training completed."
