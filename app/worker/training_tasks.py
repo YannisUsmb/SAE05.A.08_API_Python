@@ -99,8 +99,8 @@ def train_celestialbody_model_task():
     """
     print("Worker is starting image model preparation...")
     try:
-        # Asteroid, Comet, Galaxy, Quasar, Star, Planet, Satellite, Empty Space, Black Hole, Nebula.
-        model = timm.create_model('resnet18', pretrained=True, num_classes=10)
+        # 'asteroid', 'black hole', 'comet', 'constellation', 'galaxy', 'nebula', 'planet', 'star'.
+        model = timm.create_model('resnet18', pretrained=True, num_classes=8)
         print("ResNet18 model downloaded successfully.")
     except Exception as e:
         print(f"Error downloading model")

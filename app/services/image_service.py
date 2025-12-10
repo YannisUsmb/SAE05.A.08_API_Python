@@ -20,7 +20,7 @@ class ImageService:
         ])
         
         # Classes.
-        self.classes = ['Asteroid', 'Comet', 'Galaxy', 'Quasar', 'Star', 'Planet', 'Satellite', 'Empty Space', 'Black Hole', 'Nebula']
+        self.classes = ['asteroid', 'black hole', 'comet', 'constellation', 'galaxy', 'nebula', 'planet', 'star']
 
     def predict(self, file_bytes: bytes, filename: str, content_type: str, version_id: str = None) -> CelestialBodyPredictionOutput:
         selected_version = version_id or ml_models.default_image_version
