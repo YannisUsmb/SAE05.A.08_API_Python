@@ -5,7 +5,7 @@ from app.schemas.asteroid_dto import AsteroidInput, AsteroidOutput
 from app.schemas.image_dto import CelestialBodyPredictionOutput
 from app.services.asteroid_service import AsteroidService
 from app.services.image_service import ImageService
-from app.worker.training_tasks import train_asteroid_model_task, train_celestialbody_model_task
+from app.worker.training_tasks import train_asteroid_model_task
 
 router = APIRouter()
 
@@ -35,17 +35,6 @@ def trigger_training():
     task = train_asteroid_model_task.delay()
     return {
         "message": "Training started in background.",
-        "task_id": task.id
-    }
-
-@router.post("/train/image-model")
-def trigger_image_training():
-    """
-    Triggers the download/training of the ResNet image model.
-    """
-    task = train_celestialbody_model_task.delay()
-    return {
-        "message": "Image model training started in background.",
         "task_id": task.id
     }
 

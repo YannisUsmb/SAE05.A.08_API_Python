@@ -8,10 +8,9 @@ from app.schemas.image_dto import CelestialBodyPredictionOutput
 
 class ImageService:
     def __init__(self):
-        # Configuration for ResNet.
+        # Configuration.
         self.preprocess = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
+            transforms.Resize((224, 224)),
             transforms.ToTensor(),
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406], 
@@ -46,10 +45,18 @@ class ImageService:
 
         # Prediction.
         with torch.no_grad(): # No need to calculate gradients.
-            output = model(input_batch)
+            output_normal = model(input_batch)
+
+            input_flip_h = torch.flip(input_batch, dims=[3])
+            output_flip_h = model(input_flip_h)
+
+            input_flip_v = torch.flip(input_batch, dims=[2])
+            output_flip_v = model(input_flip_v)
+
+            output_avg = (output_normal + output_flip_h + output_flip_v) / 3.0
             
         # Interpretation (Softmax to get %).
-        probabilities = torch.nn.functional.softmax(output[0], dim=0)
+        probabilities = torch.nn.functional.softmax(output_avg[0], dim=0)
         
         # We take the class with the highest probability.
         top_prob, top_catid = torch.topk(probabilities, 1)

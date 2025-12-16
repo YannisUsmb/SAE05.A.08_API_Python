@@ -90,30 +90,3 @@ def train_asteroid_model_task():
 
     print(f"Worker saved the model {version_id} successfully at {output_file}.")
     return "Training completed."
-
-@celery_app.task(name="train_celestial-body_model")
-def train_celestialbody_model_task():
-    """
-    Downloads a pre-trained ResNet model and saves it for the API.
-    Loop over images to fine-tune weights.
-    """
-    print("Worker is starting image model preparation...")
-    try:
-        # 'asteroid', 'black hole', 'comet', 'constellation', 'galaxy', 'nebula', 'planet', 'star'.
-        model = timm.create_model('resnet18', pretrained=True, num_classes=8)
-        print("ResNet18 model downloaded successfully.")
-    except Exception as e:
-        print(f"Error downloading model")
-        return "Failed."
-    
-    version_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"resnet_model_{version_id}.pt"
-    output_file = os.path.join(MODEL_PATH, filename)
-    model.eval()
-
-    example_input = torch.rand(1, 3, 224, 224) 
-    traced_script_module = torch.jit.trace(model, example_input)
-    traced_script_module.save(output_file)
-
-    print(f"Worker saved the image model at {output_file}.")
-    return f"Image training completed. Version: {version_id}."
