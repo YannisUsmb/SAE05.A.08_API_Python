@@ -45,15 +45,28 @@ class ImageService:
 
         # Prediction.
         with torch.no_grad(): # No need to calculate gradients.
+            # Prediction with normal image.
             output_normal = model(input_batch)
-
+            
+            # Prediction with horizontal flip.
+            # Dims: 0=Batch, 1=Channel, 2=Height, 3=Width
             input_flip_h = torch.flip(input_batch, dims=[3])
             output_flip_h = model(input_flip_h)
-
+            
+            # Prediction with vertical flip.
             input_flip_v = torch.flip(input_batch, dims=[2])
             output_flip_v = model(input_flip_v)
+            
+            # Prediction with 90° rotation.
+            input_rot90 = torch.rot90(input_batch, k=1, dims=[2, 3])
+            output_rot90 = model(input_rot90)
 
-            output_avg = (output_normal + output_flip_h + output_flip_v) / 3.0
+            # Prediction with 270° rotation.
+            input_rot270 = torch.rot90(input_batch, k=3, dims=[2, 3])
+            output_rot270 = model(input_rot270)
+            
+            # Average.
+            output_avg = (output_normal + output_flip_h + output_flip_v + output_rot90 + output_rot270) / 5.0
             
         # Interpretation (Softmax to get %).
         probabilities = torch.nn.functional.softmax(output_avg[0], dim=0)
