@@ -112,7 +112,7 @@ class MarsService:
     def play_match(self, grid_size=8):
         env = MarsEnv(size=grid_size)
         try:
-            q_rover = np.load(f"{self.base_path}/q_rover_v2_{grid_size}.npy")
+            q_rover = np.load(f"{self.base_path}/q_rover_{grid_size}.npy")
         except:
             return {"error": "AI Models not trained yet."}
         

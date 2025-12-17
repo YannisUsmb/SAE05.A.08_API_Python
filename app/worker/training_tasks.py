@@ -2,10 +2,11 @@ from datetime import datetime
 import os
 import pandas as pd
 import lightgbm as lgb
-import torch
-import timm
+import numpy as np
+import random
 from sqlalchemy import create_engine
 from app.worker.celery_app import celery_app
+from app.services.mars_service import MarsEnv
 
 MODEL_PATH = os.getenv("MODEL_PATH", "/app/models")
 
@@ -90,3 +91,58 @@ def train_asteroid_model_task():
 
     print(f"Worker saved the model {version_id} successfully at {output_file}.")
     return "Training completed."
+
+@celery_app.task(name="train_mars_agents")
+def train_mars_agents_task(grid_size= 8, episodes=2000):
+    print(f"Worker is training rover against saboteur on {grid_size}x{grid_size} for {episodes} epochs.")
+
+    env = MarsEnv(size=grid_size)
+
+    # [Y, X, Action]
+    q_rover = np.zeros((grid_size, grid_size, 4))
+
+    epsilon = 1.0
+    decay = 0.995
+    min_epsilon = 0.05
+    lr = 0.1
+    gamma = 0.95
+
+    for episode in range(episodes):
+        state = env.reset()
+        done = False
+
+        while not done:
+            ry, rx = state
+
+            if random.random() < epsilon:
+                act_r = random.randint(0, 3)
+            else:
+                act_r = np.argmax(q_rover[ry, rx])
+
+            act_s_type = 0
+            act_s_target = (0,0)
+            if random.random() < 0.2: # 20% chance to attack.
+                act_s_type = random.choice([1, 2])
+                ty = min(grid_size-1, max(0, ry + random.randint(-1, 1)))
+                tx = min(grid_size-1, max(0, rx + random.randint(-1, 1)))
+                act_s_target = (ty, tx)
+
+            # Step.
+            next_state, r_r, _, done, _, _, _ = env.step(act_r, act_s_type, act_s_target)
+            nry, nrx = next_state
+            
+            # Update Rover Q-Table.
+            best_next = np.max(q_rover[nry, nrx])
+            q_rover[ry, rx, act_r] += lr * (r_r + gamma * best_next - q_rover[ry, rx, act_r])
+            
+            state = next_state
+            
+        epsilon = max(min_epsilon, epsilon * decay)
+        
+        if episode % 200 == 0:
+            print(f"    Episode {episode}/{episodes} - Epsilon: {epsilon:.2f}")
+
+    # Save.
+    np.save(f"/app/shared_models/q_rover_{grid_size}.npy", q_rover)
+    
+    return f"Training finished for size {grid_size}."
