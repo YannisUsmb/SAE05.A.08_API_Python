@@ -1,6 +1,8 @@
 import numpy as np
 import random
 import traceback
+import torch
+from app.models.dqn_model import RoverDQN
 
 class MarsEnv:
     def __init__(self, size=8):
@@ -132,17 +134,20 @@ class MarsService:
     def play_match(self, grid_size=8):
         try:
             env = MarsEnv(size=grid_size)
+            input_dim = grid_size * grid_size
 
-            path = f"{self.base_path}/q_rover_{grid_size}.npy"
-            print(f"Loading {path}")
+            # Load architecture.
+            model = RoverDQN(input_dim, 4)
+
+            # Load weights.
+            path = f"{self.base_path}/dqn_rover_{grid_size}.pth"
+            print(f"Loading DQN from {path}")
 
             try:
-                q_rover = np.load(path)
+                model.load_state_dict(torch.load(path))
+                model.eval()
             except Exception as e:
-                return {
-                    "error": f"Model error: {e}",
-                    "history": [], "grid_size": grid_size, "start": (0,0), "target": (0,0), "initial_rocks": [], "total_steps": 0
-                }
+                return {"error": f"Model error: {e}", "history": [], "grid_size": grid_size, "total_steps": 0}
             
             state = env.reset()
             done = False
@@ -150,30 +155,38 @@ class MarsService:
             steps = 0
 
             while not done and steps < 50:
-                ry, rx = state
+                with torch.no_grad():
+                    state_tensor = torch.FloatTensor(state).unsqueeze(0)
+                    q_values = model(state_tensor)
+                    action_r = q_values.argmax().item()
 
-                if ry >= q_rover.shape[0] or rx >= q_rover.shape[1]:
-                    break
-
-                action_r = np.argmax(q_rover[ry, rx])
+                ry, rx = int(env.rover_pos[0]), int(env.rover_pos[1])
 
                 action_s_type = 0
                 action_s_target = (0,0)
+
                 if random.random() < 0.3: 
                     if env.saboteur_charges["quake"] > 0:
                         action_s_type = 1
                         target_dir_y = env.target[0] - ry
                         target_dir_x = env.target[1] - rx
-                        action_s_target = (ry + np.sign(target_dir_y), rx + np.sign(target_dir_x))
+                        # Target calculation.
+                        ty = int(ry + np.sign(target_dir_y))
+                        tx = int(rx + np.sign(target_dir_x))
+                        # We make sure to stay within the grid.
+                        ty = max(0, min(grid_size-1, ty))
+                        tx = max(0, min(grid_size-1, tx))
+                        action_s_target = (ty, tx)
+
                     elif env.saboteur_charges["storm"] > 0:
                         action_s_type = 2
-                        action_s_target = env.rover_pos
+                        action_s_target = (ry, rx)
 
                 new_state, _, _, done, winner, r_desc, s_desc = env.step(action_r, action_s_type, action_s_target)
 
                 step_data = {
                     "step": int(steps),
-                    "rover_pos": (int(env.rover_pos[0]), int(env.rover_pos[1])),
+                    "rover_pos": (ry, rx),
                     "rover_battery": float(env.rover_battery),
                     "saboteur_charges": {k: int(v) for k, v in env.saboteur_charges.items()},
                     "action_rover": str(r_desc),
@@ -194,6 +207,7 @@ class MarsService:
                 "winner": str(winner) if winner else "Draw",
                 "total_steps": int(steps)
             }
+        
         except Exception as e:
             error_msg = traceback.format_exc()
             print(f"API Crash: {error_msg}")
