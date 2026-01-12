@@ -83,9 +83,18 @@ def play_rivals_endpoint(grid_size: int = 8):
     Watch a match between the Rover and the Saboteur.
     """
     result = rival_service.play_match(grid_size)
-    if "error" in result:
+    
+    if "error" in result or "Error" in result:
+        error_msg = result.get("error", result.get("Error", "Unknown error"))
+
         return RivalPlayResponse(
-             grid_size=grid_size, start=(0,0), target=(0,0), initial_rocks=[],
-             history=[], winner="Error: Model not found.", total_steps=0
-        )
+                grid_size=grid_size,
+                start=(0,0),
+                target=(0,0),
+                initial_rocks=[],
+                history=[],
+                winner=f"{error_msg}",
+                total_steps=0
+            )
+    
     return RivalPlayResponse(**result)
