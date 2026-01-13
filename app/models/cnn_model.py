@@ -6,13 +6,14 @@ class RoverCNN(nn.Module):
     def __init__(self, output_dim):
         super(RoverCNN, self).__init__()
 
-        # Canal 1: Rover Position.
-        # Canal 2: Obstacles.
-        # Canal 3: Base.
-        # Input: (Batch, 3, 8, 8)
+        # Canal 0: Rover Position.
+        # Canal 1: Obstacles.
+        # Canal 2: Objectives.
+        # Canal 3: Visit History.
+        # Input: (Batch, 4, 8, 8)
 
         # Convolution 1: Analyzes the immediate surroundings.
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(4, 32, kernel_size=3, stride=1, padding=1)
         # Convolution 2: Analysis of more complex patterns.
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
 

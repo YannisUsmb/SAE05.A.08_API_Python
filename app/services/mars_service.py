@@ -86,8 +86,14 @@ class MarsEnv:
         channel_target[self.target] = 1.0
         channel_target[self.grid == 4] = 0.5
 
-        # Stack the 3 channels: Shape (3, 8, 8).
-        state = np.stack([channel_rover, channel_obstacles, channel_target], axis=0)
+        # Canal 3: Heatmap.
+        channel_history = np.zeros((self.size, self.size), dtype=np.float32)
+        for pos, count in self.visit_counts.items():
+            intensity = min(1.0, count * 0.1) 
+            channel_history[pos] = intensity
+
+        # Stack the 4 channels: Shape (4, 8, 8).
+        state = np.stack([channel_rover, channel_obstacles, channel_target, channel_history], axis=0)
         return state
     
     def _would_block_base(self, y, x):
@@ -203,7 +209,10 @@ class MarsEnv:
             if current_visit_count == 1:
                 reward_rover += 0.5 # Bonus for discovering.
             else:
-                reward_rover -= (2 ** (current_visit_count - 1)) * 0.5 # Penalty if return.
+                # Penalty if return.
+                raw_penalty = (2 ** (current_visit_count - 1)) * 0.5
+                capped_penalty = min(10.0, raw_penalty)
+                reward_rover -= capped_penalty
 
         return self._get_state(), reward_rover, 0, done, winner, rover_desc, saboteur_desc
     
