@@ -136,7 +136,7 @@ def train_mars_agents_task(grid_size= 8, episodes=2000):
 
     epsilon = 1.0
     min_epsilon = 0.1
-    decay = 0.995
+    decay = 0.9995
     batch_size = 64
     gamma = 0.95
 
@@ -180,7 +180,7 @@ def train_mars_agents_task(grid_size= 8, episodes=2000):
                                     best_block = (ny, nx)
                     if best_block: act_s_target = best_block
                     else: act_s_target = (ry, rx)
-                elif env.sentinel_charges["storm"] > 0:
+                elif env.saboteur_charges["storm"] > 0:
                      act_s_type = 2
                      act_s_target = (ry, rx)
 
@@ -228,7 +228,7 @@ def train_mars_agents_task(grid_size= 8, episodes=2000):
             print(f"   Episode {episode} - Reward: {total_reward:.1f} - Epsilon: {epsilon:.2f}")
 
     # Save.
-    save_path = f"/app/shared_models/dqn_rover_{grid_size}.pth"
+    save_path = f"/app/shared_models/cnn_rover_{grid_size}.pth"
     torch.save(policy_net.state_dict(), save_path)
     
-    return f"DQN Training finished for size {grid_size}. Saved to {save_path}."
+    return f"CNN Training finished for size {grid_size}. Saved to {save_path}."
