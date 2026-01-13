@@ -97,7 +97,7 @@ def train_asteroid_model_task():
     return "Training completed."
 
 class ReplayBuffer:
-    def __init__(self, capacity=10000):
+    def __init__(self, capacity=250000):
         self.buffer = []
         self.capacity = capacity
         self.position = 0
@@ -113,6 +113,14 @@ class ReplayBuffer:
     
     def __len__(self):
         return len(self.buffer)
+    
+def soft_update(local_model, target_model, tau):
+    """
+    Slowly updates the weights of the target_model to those of the local_model.
+    θ_target = τ*θ_local + (1 - τ)*θ_target
+    """
+    for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
+        target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
 @celery_app.task(name="train_mars_agents")
 def train_mars_agents_task(grid_size= 8, episodes=2000):
@@ -129,16 +137,17 @@ def train_mars_agents_task(grid_size= 8, episodes=2000):
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
 
-    optimizer = optim.Adam(policy_net.parameters(), lr=0.001)
+    optimizer = optim.Adam(policy_net.parameters(), lr=0.0005)
     loss_fn = nn.MSELoss()
 
-    buffer = ReplayBuffer(10000)
+    buffer = ReplayBuffer(250000)
 
     epsilon = 1.0
-    min_epsilon = 0.1
-    decay = 0.9995
-    batch_size = 64
-    gamma = 0.95
+    min_epsilon = 0.05
+    decay = 0.9992
+    batch_size = 128
+    gamma = 0.99
+    TAU = 0.005
 
     target_update_freq = 500
     steps_done = 0
@@ -218,8 +227,7 @@ def train_mars_agents_task(grid_size= 8, episodes=2000):
                 loss.backward()
                 optimizer.step()
 
-            if steps_done % target_update_freq == 0:
-                target_net.load_state_dict(policy_net.state_dict())
+                soft_update(policy_net, target_net, TAU)
 
         # Decay Epsilon.
         epsilon = max(min_epsilon, epsilon * decay)
