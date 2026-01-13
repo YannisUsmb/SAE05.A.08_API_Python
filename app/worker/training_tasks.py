@@ -115,7 +115,7 @@ class ReplayBuffer:
         return len(self.buffer)
 
 @celery_app.task(name="train_mars_agents")
-def train_mars_agents_task(grid_size= 8, episodes=1000):
+def train_mars_agents_task(grid_size= 8, episodes=2000):
     print(f"Worker is training rover against saboteur on {grid_size}x{grid_size} for {episodes} epochs.")
 
     env = MarsEnv(size=grid_size)
@@ -124,6 +124,12 @@ def train_mars_agents_task(grid_size= 8, episodes=1000):
 
     # Network Initialisation.
     policy_net = RoverDQN(input_dim, output_dim)
+
+    # Target Network.
+    target_net = RoverDQN(input_dim, output_dim)
+    target_net.load_state_dict(policy_net.state_dict())
+    target_net.eval()
+
     optimizer = optim.Adam(policy_net.parameters(), lr=0.001)
     loss_fn = nn.MSELoss()
 
@@ -135,12 +141,18 @@ def train_mars_agents_task(grid_size= 8, episodes=1000):
     batch_size = 64
     gamma = 0.95
 
+    target_update_freq = 500
+    steps_done = 0
+
     for episode in range(episodes):
         state = env.reset()
         done = False
         total_reward = 0
 
         while not done:
+            steps_done += 1
+
+            # Rover.
             if random.random() < epsilon:
                 action = random.randint(0, 3)
             else:
@@ -151,9 +163,9 @@ def train_mars_agents_task(grid_size= 8, episodes=1000):
 
             # Saboteur.
             ry, rx = int(env.rover_pos[0]), int(env.rover_pos[1])        
-
             act_s_type = 0
             act_s_target = (0,0)
+
             if random.random() < 0.3: # 30% chance to attack.
                 if env.saboteur_charges["quake"] > 0:
                     act_s_type = 1
@@ -187,7 +199,9 @@ def train_mars_agents_task(grid_size= 8, episodes=1000):
                 curr_q = policy_net(b_state).gather(1, b_action)
                 
                 # Max futur Q(s', a').
-                next_q = policy_net(b_next_state).max(1)[0].unsqueeze(1)
+                with torch.no_grad():
+                    next_q = target_net(b_next_state).max(1)[0].unsqueeze(1)
+                    
                 expected_q = b_reward + (gamma * next_q * (1 - b_done))
 
                 # Gradient Descent.

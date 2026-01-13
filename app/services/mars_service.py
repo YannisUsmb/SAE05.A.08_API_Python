@@ -8,11 +8,7 @@ class MarsEnv:
     def __init__(self, size=8):
         self.size = size
 
-        # --- LÉGENDE DE LA CARTE (GRID) ---
-        # 0 = Empty
-        # 1 = Rock
-        # 2 = Storm
-        # 3 = Base
+        # 0 = Empty, 1 = Rock, 2 = Storm, 3 = Base.
 
         self.rover_pos = (0, 0)
         self.target = (size-1, size-1)
@@ -29,15 +25,20 @@ class MarsEnv:
 
         self.cost_map = np.ones((size, size))
 
+        self.visited = set()
+
     def reset(self):
         self.rover_pos = (0, 0)
         self.rover_battery = 15
-        self.saboteur_charges = {"quake": 3, "storm": 2}
+        self.saboteur_charges = {"quake": 3, "storm": 1}
 
         self.grid = np.zeros((self.size, self.size))
         self.grid[self.target] = 3
 
         self.cost_map = np.ones((self.size, self.size))
+
+        self.visited = set()
+        self.visited.add(self.rover_pos)
 
         # Add random rocks (never on the Rover or the Base).
         for _ in range(self.size):
@@ -65,6 +66,8 @@ class MarsEnv:
         """
 
         # Rover Turn.
+        old_pos = self.rover_pos
+
         dy, dx = 0, 0
         rover_desc = ["UP", "DOWN", "LEFT", "RIGHT"][action_rover]
 
@@ -82,7 +85,6 @@ class MarsEnv:
         self.rover_battery -= cost
 
         # Saboteur Turn.
-
         saboteur_desc = "WAIT"
 
         # Quake Action (Rock=1).
@@ -113,6 +115,8 @@ class MarsEnv:
         winner = None
         reward_rover = 0
 
+        dist = abs(self.rover_pos[0] - self.target[0]) + abs(self.rover_pos[1] - self.target[1])
+
         if self.rover_pos == self.target:
             done = True
             winner = "Rover"
@@ -122,8 +126,19 @@ class MarsEnv:
             winner = "Saboteur"
             reward_rover = -100
         else:
-            dist = abs(self.rover_pos[0] - self.target[0]) + abs(self.rover_pos[1] - self.target[1])
-            reward_rover = -0.1 * dist
+            # Reward Shaping (closer is better).
+            reward_rover = (15.0 - dist) * 0.1 - 0.5
+
+            # Wall Penalty.
+            if self.rover_pos == old_pos:
+                reward_rover -= 5.0
+
+            # Visited (encourage exploration).
+            if self.rover_pos not in self.visited:
+                reward_rover += 0.5 # Bonus for discovering.
+                self.visited.add(self.rover_pos)
+            else:
+                reward_rover -= 0.2 # Penalty if return.
 
         return self._get_state(), reward_rover, 0, done, winner, rover_desc, saboteur_desc
     
