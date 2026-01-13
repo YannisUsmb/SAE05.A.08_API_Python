@@ -19,15 +19,21 @@ class RoverCNN(nn.Module):
 
         self.flatten_dim = 64 * 8 * 8
 
-        # Linear layers for decision-making.
-        self.fc1 = nn.Linear(self.flatten_dim, 512)
-        self.fc2 = nn.Linear(512, output_dim)
+        self.fc_common = nn.Linear(self.flatten_dim, 512) # Common layer before separation.
+        self.fc_value = nn.Linear(512, 1) # Stream 1: The Value (V) of the state (1 output only).
+        self.fc_advantage = nn.Linear(512, output_dim) # Stream 2: The Advantage (A) of each action (4 outputs).
 
     def forward(self, x):
+        # Vision.
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
-
         x = x.view(x.size(0), -1)
 
-        x = F.relu(self.fc1(x))
-        return self.fc2(x)
+        # Common.
+        x = F.relu(self.fc_common(x))
+
+        # Separation
+        val = self.fc_value(x)          # V(s).
+        adv = self.fc_advantage(x)      # A(s, a).
+
+        return val + (adv - adv.mean(dim=1, keepdim=True))
