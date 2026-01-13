@@ -9,7 +9,7 @@ import torch.optim as optim
 import torch.nn as nn
 from sqlalchemy import create_engine
 from app.services.mars_service import MarsEnv
-from app.models.dqn_model import RoverDQN
+from app.models.cnn_model import RoverCNN
 from app.worker.celery_app import celery_app
 
 MODEL_PATH = os.getenv("MODEL_PATH", "/app/models")
@@ -119,14 +119,13 @@ def train_mars_agents_task(grid_size= 8, episodes=2000):
     print(f"Worker is training rover against saboteur on {grid_size}x{grid_size} for {episodes} epochs.")
 
     env = MarsEnv(size=grid_size)
-    input_dim = grid_size * grid_size
     output_dim = 4 # Up, Down, Left, Right.
 
     # Network Initialisation.
-    policy_net = RoverDQN(input_dim, output_dim)
+    policy_net = RoverCNN(output_dim)
 
     # Target Network.
-    target_net = RoverDQN(input_dim, output_dim)
+    target_net = RoverCNN(output_dim)
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
 
@@ -166,13 +165,22 @@ def train_mars_agents_task(grid_size= 8, episodes=2000):
             act_s_type = 0
             act_s_target = (0,0)
 
-            if random.random() < 0.3: # 30% chance to attack.
+            if random.random() < 0.4: # 40% chance to attack.
                 if env.saboteur_charges["quake"] > 0:
                     act_s_type = 1
-                    ty = env.rover_pos[0] + random.randint(-1, 1)
-                    tx = env.rover_pos[1] + random.randint(-1, 1)
-                    act_s_target = (max(0, min(grid_size-1, ty)), max(0, min(grid_size-1, tx)))
-                elif env.saboteur_charges["storm"] > 0:
+                    best_block = None
+                    min_d = 999
+                    for dy, dx in [(-1,0), (1,0), (0,-1), (0,1)]:
+                        ny, nx = ry + dy, rx + dx
+                        if 0 <= ny < grid_size and 0 <= nx < grid_size:
+                            if env.grid[ny, nx] == 0 and (ny, nx) != env.target:
+                                d = abs(ny - env.target[0]) + abs(nx - env.target[1])
+                                if d < min_d:
+                                    min_d = d
+                                    best_block = (ny, nx)
+                    if best_block: act_s_target = best_block
+                    else: act_s_target = (ry, rx)
+                elif env.sentinel_charges["storm"] > 0:
                      act_s_type = 2
                      act_s_target = (ry, rx)
 
@@ -201,7 +209,7 @@ def train_mars_agents_task(grid_size= 8, episodes=2000):
                 # Max futur Q(s', a').
                 with torch.no_grad():
                     next_q = target_net(b_next_state).max(1)[0].unsqueeze(1)
-                    
+
                 expected_q = b_reward + (gamma * next_q * (1 - b_done))
 
                 # Gradient Descent.
@@ -210,11 +218,14 @@ def train_mars_agents_task(grid_size= 8, episodes=2000):
                 loss.backward()
                 optimizer.step()
 
-            # Decay Epsilon.
-            epsilon = max(min_epsilon, epsilon * decay)
+            if steps_done % target_update_freq == 0:
+                target_net.load_state_dict(policy_net.state_dict())
 
-            if episode % 100 == 0:
-                print(f"   Episode {episode} - Reward: {total_reward:.1f} - Epsilon: {epsilon:.2f}")
+        # Decay Epsilon.
+        epsilon = max(min_epsilon, epsilon * decay)
+
+        if episode % 100 == 0:
+            print(f"   Episode {episode} - Reward: {total_reward:.1f} - Epsilon: {epsilon:.2f}")
 
     # Save.
     save_path = f"/app/shared_models/dqn_rover_{grid_size}.pth"

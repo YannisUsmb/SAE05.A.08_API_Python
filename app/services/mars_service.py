@@ -2,7 +2,7 @@ import numpy as np
 import random
 import traceback
 import torch
-from app.models.dqn_model import RoverDQN
+from app.models.cnn_model import RoverCNN
 
 class MarsEnv:
     def __init__(self, size=8):
@@ -28,17 +28,26 @@ class MarsEnv:
         self.visited = set()
 
     def reset(self):
-        self.rover_pos = (0, 0)
         self.rover_battery = 15
         self.saboteur_charges = {"quake": 3, "storm": 1}
-
-        self.grid = np.zeros((self.size, self.size))
-        self.grid[self.target] = 3
-
-        self.cost_map = np.ones((self.size, self.size))
-
         self.visited = set()
+
+        # Random Generation of start and target.
+        while True:
+            y1, x1 = random.randint(0, self.size-1), random.randint(0, self.size-1)
+            y2, x2 = random.randint(0, self.size-1), random.randint(0, self.size-1)
+
+            # Check that they are not in the same place.
+            dist = abs(y1-y2) + abs(x1-x2)
+            if (y1, x1) != (y2, x2) and dist > 3:
+                self.rover_pos = (y1, x1)
+                self.target = (y2, x2)
+                break
+
         self.visited.add(self.rover_pos)
+        
+        self.grid = np.zeros((self.size, self.size))
+        self.cost_map = np.ones((self.size, self.size)) 
 
         # Add random rocks (never on the Rover or the Base).
         for _ in range(self.size):
@@ -49,15 +58,23 @@ class MarsEnv:
         return self._get_state()
     
     def _get_state(self):
-        # We create a copy of the grid so as not to break the logic of the game.
-        vision_grid = self.grid.copy()
-
-        # The grid will see: 0=Empty, 1=Rock, 2=Storm, 3=Base, 10=Rover.
+        # Canal 0: Rover Position.
+        channel_rover = np.zeros((self.size, self.size), dtype=np.float32)
         if 0 <= self.rover_pos[0] < self.size and 0 <= self.rover_pos[1] < self.size:
-             vision_grid[self.rover_pos] = 10
+            channel_rover[self.rover_pos] = 1.0
 
-        # The 2D grid is flattened into a 1D line.
-        return vision_grid.flatten()
+        # Canal 1: Obstacles.
+        channel_obstacles = np.zeros((self.size, self.size), dtype=np.float32)
+        channel_obstacles[self.grid == 1] = 1.0 # Walls.
+        channel_obstacles[self.grid == 2] = 0.5 # Storms.
+
+        # Canal 2: Base.
+        channel_target = np.zeros((self.size, self.size), dtype=np.float32)
+        channel_target[self.target] = 1.0
+
+        # Stack the 3 channels: Shape (3, 8, 8).
+        state = np.stack([channel_rover, channel_obstacles, channel_target], axis=0)
+        return state
     
     def step(self, action_rover, action_saboteur_type, action_saboteur_target=None):
         """
@@ -149,13 +166,12 @@ class MarsService:
     def play_match(self, grid_size=8):
         try:
             env = MarsEnv(size=grid_size)
-            input_dim = grid_size * grid_size
 
             # Load architecture.
-            model = RoverDQN(input_dim, 4)
+            model = RoverCNN(4)
 
             # Load weights.
-            path = f"{self.base_path}/dqn_rover_{grid_size}.pth"
+            path = f"{self.base_path}/cnn_rover_{grid_size}.pth"
             print(f"Loading DQN from {path}")
 
             try:
@@ -180,24 +196,36 @@ class MarsService:
                 action_s_type = 0
                 action_s_target = (0,0)
 
-                if random.random() < 0.3: 
+                if random.random() < 0.4: 
                     if env.saboteur_charges["quake"] > 0:
                         action_s_type = 1
-                        target_dir_y = env.target[0] - ry
-                        target_dir_x = env.target[1] - rx
-                        # Target calculation.
-                        ty = int(ry + np.sign(target_dir_y))
-                        tx = int(rx + np.sign(target_dir_x))
-                        # We make sure to stay within the grid.
-                        ty = max(0, min(grid_size-1, ty))
-                        tx = max(0, min(grid_size-1, tx))
-                        action_s_target = (ty, tx)
+
+                        best_block_pos = None
+                        min_dist_to_target = 999
+
+                        for dy, dx in [(-1,0), (1,0), (0,-1), (0,1)]:
+                            ny, nx = ry + dy, rx + dx
+                            if 0 <= ny < grid_size and 0 <= nx < grid_size:
+                                # If it's empty and not the base.
+                                if env.grid[ny, nx] == 0 and (ny, nx) != env.target:
+                                    d = abs(ny - env.target[0]) + abs(nx - env.target[1])
+                                    if d < min_dist_to_target:
+                                        min_dist_to_target = d
+                                        best_block_pos = (ny, nx)
+
+                        if best_block_pos:
+                            action_s_target = best_block_pos
+                        else:
+                            action_s_target = (ry, rx)
 
                     elif env.saboteur_charges["storm"] > 0:
                         action_s_type = 2
                         action_s_target = (ry, rx)
 
                 new_state, _, _, done, winner, r_desc, s_desc = env.step(action_r, action_s_type, action_s_target)
+
+                display_grid = env.grid.copy()
+                display_grid[env.target] = 3
 
                 step_data = {
                     "step": int(steps),
