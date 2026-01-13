@@ -5,9 +5,9 @@ import torch.nn.functional as F
 class RoverDQN(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(RoverDQN, self).__init__()
-        self.fc1 == nn.Linear(input_dim, 128)
-        self.fc2 == nn.Linear(128, 64)
-        self.fc3 == nn.Linear(64, output_dim)
+        self.fc1 = nn.Linear(input_dim, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, output_dim)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))

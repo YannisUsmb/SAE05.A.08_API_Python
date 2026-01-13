@@ -141,8 +141,6 @@ def train_mars_agents_task(grid_size= 8, episodes=1000):
         total_reward = 0
 
         while not done:
-            ry, rx = state
-
             if random.random() < epsilon:
                 action = random.randint(0, 3)
             else:
@@ -151,14 +149,20 @@ def train_mars_agents_task(grid_size= 8, episodes=1000):
                     q_values = policy_net(state_tensor)
                     action = q_values.argmax().item()
 
+            # Saboteur.
+            ry, rx = int(env.rover_pos[0]), int(env.rover_pos[1])        
+
             act_s_type = 0
             act_s_target = (0,0)
             if random.random() < 0.3: # 30% chance to attack.
-                if env.sentinel_charges["quake"] > 0:
+                if env.saboteur_charges["quake"] > 0:
                     act_s_type = 1
                     ty = env.rover_pos[0] + random.randint(-1, 1)
                     tx = env.rover_pos[1] + random.randint(-1, 1)
                     act_s_target = (max(0, min(grid_size-1, ty)), max(0, min(grid_size-1, tx)))
+                elif env.saboteur_charges["storm"] > 0:
+                     act_s_type = 2
+                     act_s_target = (ry, rx)
 
             # Step.
             next_state, reward, _, done, _, _, _ = env.step(action, act_s_type, act_s_target)
