@@ -13,7 +13,7 @@ class ModelLoader:
         self.image_models = {}
         self.default_image_version = None
 
-        self.models_path = os.getenv("MODEL_PATH", "/app/models")
+        self.models_path = os.getenv("MODEL_PATH", "/app/shared_models")
 
     def load_models(self):
         """
