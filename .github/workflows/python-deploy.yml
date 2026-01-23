@@ -1,0 +1,44 @@
+name: Deploy Python API to Azure (Dev)
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: 'WebAppAstralisApiPythonDevCode'
+  PYTHON_VERSION: '3.10' 
+  PROJECT_PATH: '.'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Récupération du code
+      - uses: actions/checkout@v4
+
+      # 2. Setup Python
+      - name: Set up Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # 3. Préparation de l'artefact
+      - name: Prepare and Zip application
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+          
+          echo "Suppression du modèle interdit..."
+          rm -f shared_models/asteroid_prediction_model_20251209_151211.txt
+          
+          zip -r python-app.zip . -x "venv/*" -x ".venv/*" -x "__pycache__/*" -x "*.git*" -x "python-app.zip"
+
+      # 4. Connexion Azure
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_PYTHON }}
+          package: ./python-app.zip
